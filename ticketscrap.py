@@ -11,8 +11,8 @@ FB_EMAIL = os.environ.get('FB_EMAIL')
 FB_PASS = os.environ.get('FB_PASS')
 
 
-def click_button(soup, button_text, driver, by_class=True):
-    for button in soup.find_all('button'):
+def click_button(soup, button_text, driver, by_class=True, button_type='button'):
+    for button in soup.find_all(button_type):
         if button.text == button_text:
             if by_class:
                 button_class = button['class'][0]
@@ -29,29 +29,28 @@ def main(ticket_path=TICKET_PATH, sleep_time=0.1, fb_email=FB_EMAIL, fb_pass=FB_
         r = requests.get(ticket_path)
         soup = BeautifulSoup(r.content, 'html.parser')
         if len(soup.find_all('h5')) > 0:
-            for a in soup.find_all('a', href=True):
-                if a['href'].startswith('https://www.ticketswap.fr/listing'):
-                    print('Ticket in sale')
-                    r_ticket = (
-                        requests.get(a['href'])
-                    )
-                    soup_ticket = BeautifulSoup(r_ticket.content, 'html.parser')
-                    driver = webdriver.Chrome()
-                    driver.get(a['href'])
-                    driver = click_button(soup_ticket, 'Acheter un billet', driver)
-                    time.sleep(1)
-                    connexion_soup = BeautifulSoup(driver.page_source)
-                    driver = click_button(connexion_soup, 'Se connecter avec Facebook', driver)
-                    main_window_handle = driver.current_window_handle
+            print('Ticket in sale')
+            first_ticket = [
+                a['href'].startswith('https://www.ticketswap.fr/listing') for a in soup.find_all('a', href=True)
+            ][0]
+            r_ticket = (requests.get(first_ticket))
+            soup_ticket = BeautifulSoup(r_ticket.content, 'html.parser')
+            driver = webdriver.Chrome()
+            driver.get(first_ticket)
+            driver = click_button(soup_ticket, 'Acheter un billet', driver)
+            time.sleep(1)
+            connexion_soup = BeautifulSoup(driver.page_source)
+            driver = click_button(connexion_soup, 'Se connecter avec Facebook', driver)
 
-                    signin_window_handle = None
-                    while not signin_window_handle:
-                        for handle in driver.window_handles:
-                            if handle != main_window_handle:
-                                signin_window_handle = handle
-                                break
-
+            main_window_handle = driver.current_window_handle
+            signin_window_handle = None
+            while not signin_window_handle:
+                for handle in driver.window_handles:
+                    if handle != main_window_handle:
+                        signin_window_handle = handle
+                        break
                     driver.switch_to.window(signin_window_handle)
+
                     second_connexion_soup = BeautifulSoup(driver.page_source)
                     driver = click_button(second_connexion_soup, 'Tout accepter', driver, False)
                     driver.find_element_by_id('email').send_keys(fb_email)
