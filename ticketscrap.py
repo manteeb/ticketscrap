@@ -11,7 +11,8 @@ FB_EMAIL = os.environ.get('FB_EMAIL')
 FB_PASS = os.environ.get('FB_PASS')
 
 
-def click_button(soup, button_text, driver, by_class=True, button_type='button'):
+def click_button(button_text, driver, by_class=True, button_type='button'):
+    soup = BeautifulSoup(driver.page_source)
     for button in soup.find_all(button_type):
         if button.text == button_text:
             if by_class:
@@ -33,14 +34,11 @@ def main(ticket_path=TICKET_PATH, sleep_time=0.1, fb_email=FB_EMAIL, fb_pass=FB_
             first_ticket = [
                 a['href'].startswith('https://www.ticketswap.fr/listing') for a in soup.find_all('a', href=True)
             ][0]
-            r_ticket = (requests.get(first_ticket))
-            soup_ticket = BeautifulSoup(r_ticket.content, 'html.parser')
             driver = webdriver.Chrome()
             driver.get(first_ticket)
-            driver = click_button(soup_ticket, 'Acheter un billet', driver)
+            driver = click_button('Acheter un billet', driver)
             time.sleep(1)
-            connexion_soup = BeautifulSoup(driver.page_source)
-            driver = click_button(connexion_soup, 'Se connecter avec Facebook', driver)
+            driver = click_button('Se connecter avec Facebook', driver)
 
             main_window_handle = driver.current_window_handle
             signin_window_handle = None
@@ -50,16 +48,15 @@ def main(ticket_path=TICKET_PATH, sleep_time=0.1, fb_email=FB_EMAIL, fb_pass=FB_
                         signin_window_handle = handle
                         break
                     driver.switch_to.window(signin_window_handle)
-
                     second_connexion_soup = BeautifulSoup(driver.page_source)
-                    driver = click_button(second_connexion_soup, 'Tout accepter', driver, False)
+                    driver = click_button('Tout accepter', driver, False)
                     driver.find_element_by_id('email').send_keys(fb_email)
                     driver.find_element_by_id('pass').send_keys(fb_pass)
                     for button in second_connexion_soup.find_all('input'):
                         if button.get('value') == 'Se connecter':
                             button_id = button['id']
-                    driver.find_element_by_id(button_id).click()
-                    time.sleep(600)
+                            driver.find_element_by_id(button_id).click()
+                            time.sleep(600)
                     break
         print('No Ticket')
         time.sleep(sleep_time)
